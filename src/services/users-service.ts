@@ -50,3 +50,41 @@ export async function loginUser(email: string, passwordString: string) {
 
   return token;
 }
+
+export async function getCurrentUser(token: string) {
+  // 1. Lakukan join sessions dan users berdasarkan userId
+  const result = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      createdAt: users.createdAt,
+    })
+    .from(sessions)
+    .innerJoin(users, eq(sessions.userId, users.id))
+    .where(eq(sessions.token, token))
+    .limit(1);
+
+  if (result.length === 0) {
+    throw new Error("unauthorized");
+  }
+
+  const currentUser = result[0]!;
+
+  // 2. Format Date menjadi YYYY-MM-DD HH:mm:ss
+  let formattedDate = "";
+  if (currentUser.createdAt instanceof Date) {
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const d = currentUser.createdAt;
+    formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  } else if (currentUser.createdAt) {
+    formattedDate = String(currentUser.createdAt);
+  }
+
+  return {
+    id: currentUser.id,
+    name: currentUser.name,
+    email: currentUser.email,
+    createdAt: formattedDate,
+  };
+}
